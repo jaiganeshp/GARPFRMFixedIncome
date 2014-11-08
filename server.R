@@ -1,4 +1,8 @@
 # This is the server logic for a Shiny web application.
+# You can find out more about building applications with Shiny here:
+# 
+# http://www.rstudio.com/shiny/
+#
 #server.R for fixedIncome part of GARPFRM package
 
 #Loading the required library files
@@ -8,6 +12,7 @@ library(xts)
 
 source("discountFactorArbitrage.R")
 source("riskMetricsAndHedges.R")
+
 
 #Modified the function bondFullPrice already present in bondFullPrice
 bondFullPrice<-function(bond, yield, cashFlowPd, t0, t1, currentDate){
@@ -38,14 +43,11 @@ bondFullPrice<-function(bond, yield, cashFlowPd, t0, t1, currentDate){
 bond.data <- readRDS("data/bond_Data.rds")
 tnotes <-readRDS("data/tnotes.rds")
 
-###Main Function####
-#We can write all the functionalities of the application under the shinyServer function
 shinyServer(function(input, output) {  
-  
-  #Function to calculate the discount factor  
+  #Calculation the Discount Curve  
   output$discount.factor<-renderPrint({
     
-    # Take a dependency on input$discount.factor_button
+    # Take a dependency on input$goButton
     input$discount.factor_button
     
     # Use isolate() to avoid dependency on other inputs    
@@ -104,10 +106,10 @@ shinyServer(function(input, output) {
   } 
  )
 
- ##Function to Calculate the full bond price####  
+ #Calculation the full bond price  
  output$bond.price<-renderPrint({
    
-   # Take a dependency on input$price_button
+   # Take a dependency on input$goButton
    input$bond.price_button
    
    # Use isolate() to avoid dependency on other inputs    
@@ -128,7 +130,7 @@ shinyServer(function(input, output) {
      y<-input$yield
           
      #Checking if Yield and Coupon rate is greated than 100%
-     if(!all(c(cr,y)<100))
+     if(!all(c(cr,y1)<100))
        return("Please enter a percentage less than 100")     
      
      cr<-cr/100
@@ -148,11 +150,11 @@ shinyServer(function(input, output) {
       
  } 
  )
- 
- #Function to Plot the Bond Price at various times with a constant discout curve####
- output$bond.price_plot<-renderPlot({   
+
+ output$bp.plot<-renderPlot({
+   
    # Take a dependency on input$goButton
-   input$bond.price_button
+   input$bondpricebutton
    
    # Use isolate() to avoid dependency on other inputs    
    isolate({
@@ -165,71 +167,61 @@ shinyServer(function(input, output) {
      #Maturity Date
      tm<-input$tm
      #Current Date
-     tn<-input$tn
-     #Reading Bond Coupon Rate and Yield
+     tn<-input$tn     
      cr<-input$bcr
-     y<-input$yield
+     y1<-input$yield
      
           
      #Checking if Yield and Coupon rate is greated than 100%
-     if(!all(c(cr,y)<100))
+     if(!all(c(cr,y1)<100))
        return("Please enter a percentage less than 100")     
      
      cr<-cr/100
-     y<-y/100
+     y1<-y1/100
      
      #Calculating the cash flow periods
      n <- as.numeric(round((tm-t0)/365*2))
      
      bond = bondSpec(face=100, m=2, couponRate = cr)   
      t1.add<- seq(t1,length=2, by = "6 months")[2]
-     #Getting the Full Bond Price at different times using function defined in GARPFRM
-     bp.tn<-bondFullPrice(bond, y, n, t0, t1, tn)
-     bp.t0<-bondFullPrice(bond, y, n, t0, t1, t0)
-     bp.t1<-bondFullPrice(bond, y, n, t0, t1, t1)
-     bp.t1.clean<-bondFullPrice(bond, y, n-1, t1, t1.add, t1)
-     bp.t1.new<-bondFullPrice(bond, y, n-1, t1, t1.add, t1.add)
-     
-     #Merging all the prices
+     #Getting the Full Bond Price using function defined in GARPFRM
+     bp.tn<-bondFullPrice(bond, y1, n, t0, t1, tn)
+     bp.t0<-bondFullPrice(bond, y1, n, t0, t1, t0)
+     bp.t1<-bondFullPrice(bond, y1, n, t0, t1, t1)
+     bp.t1.clean<-bondFullPrice(bond, y1, n-1, t1, t1.add, t1)
+     bp.t1.new<-bondFullPrice(bond, y1, n-1, t1, t1.add, t1.add)
      price<-cbind(bp.t0,bp.tn,bp.t1,bp.t1.clean,bp.t1.new)
-     
-     #Getting the clean and dirty prices from the price
      dirtyp <- price[1,]
      cleanp <- price[2,]
      
-     #According to the time to maturity, changing the date vector
      if ( t1.add > tm)
        {date <- c(t0,tn,t1)} else 
        {date<-c(t0,tn,t1,t1,t1.add)}     
-     
-     #Changing the y-axis limits
      ymin<- min(as.numeric(dirtyp[1:length(date)]),as.numeric(cleanp[1:length(date)]))
      ymax<- max(as.numeric(dirtyp[1:length(date)]),as.numeric(cleanp[1:length(date)]))
-     
-     #Plotting the data
      plot(x=date,y=dirtyp[1:length(date)],type="b",xaxt="n", xlab='Settlement Date', ylab="Price"
           ,ylim = c(ymin, ymax), col= 3, lty = 1, main = "Plot Showing Variation in Price with Constant Discount Curve")
      axis(side=1, at=date, labels=format(as.Date(date), '%Y-%m-%d'))     
      lines(as.Date(date),cleanp[1:length(date)],type="l",lty=2, col = 4)
-     legend("bottomleft",c("Dirty Price", "Flat Price"),lty=c(1,2),col=c(3,4), bty="n")     
-   })   
+     legend("bottomleft",c("Dirty Price", "Flat Price"),lty=c(1,2),col=c(3,4), bty="n")
+     
+   })
+   
  } 
  )
  
  
-###Function to calculate and display Bond Parameters####
- output$bond.parameters<-renderPrint({
+ #Calculation of Bond Parameters
+ output$p<-renderPrint({
    
    # Take a dependency on input$goButton
-   input$present.value_button
+   input$presentvaluebutton
    
    # Use isolate() to avoid dependency on other inputs    
    isolate({
-    #Reading years to maturity
+    #Reading input values
     t <- input$t
-    #Reading the discount factor
     df<-as.numeric(unlist(strsplit(input$df,",")))
-    #Reading the bond parameters coupon rate
     cr<-input$pcr
     
     #Creating a time sequnce for cash flows until maturity
@@ -250,7 +242,7 @@ shinyServer(function(input, output) {
     df<-df[1:length(time)]
     cr<-cr/100
     
-    #Calculating the bondparametneres using the functions defined in GARPFRM R package  
+    #Calculating the bondparametneres  
     bond = bondSpec(time,face=100, m=2, couponRate = cr)
     price = bondPrice(bond,df)
     ytm = bondYTM(bond,df)
@@ -258,7 +250,7 @@ shinyServer(function(input, output) {
     convexity=bondConvexity(bond,df)
     mduration = duration/(1+ytm/2)
     
-    #Giving output as a list 
+    #Giving output as a list
     list(BondPrice=round(price,input$digits),YTM=round(ytm,input$digits),
          MacaulayDuration=round(duration,input$digits),ModifiedDuration=round(mduration,input$digits)
          ,BondConvexity=round(convexity,input$digits))
@@ -266,18 +258,18 @@ shinyServer(function(input, output) {
    
  } 
  )
-  
- ###Function to get the data for spot rates and discount curve rates####
- getDFSpotrate<-reactive(
- {
-  #Taking the dependencies
-  input$spot.rate_button
-  
+ 
+ #################################
+ 
+ #Function to get the data for spot rates and discount curve rates
+getDFSpotrate<-reactive(
+{
+  input$srbutton
   isolate({ 
-    
-  #Validating the uploaded dataset  
+#  inFile <- input$file1
   if(input$userip == 'Upload a Dataset')
   {
+    
     if(input$filetype == "Excel"){
       format<-unlist(strsplit(input$file.excel$name,'[.]'))[2]
       if(format == 'xlsx' || format == 'xlsm'){
@@ -311,16 +303,13 @@ shinyServer(function(input, output) {
       }      
     }
         
-    #Taking the column names
     dat.names<- colnames(dat)
     
-    #Checking if the header names are present in the files
     if(!is.element("IssueDate",dat.names) || !is.element("MaturityDate",dat.names)
        || !is.element("Coupon",dat.names) || !is.element("Ask",dat.names) 
        || !is.element("Bid",dat.names) )
       return ("Please Check the header names In the file.")
-    
-    #Checking the maturity date format
+  
     if(any(is.na(as.Date(as.character(dat[,"MaturityDate"])))))
        return ("Maturity Date Column is not properly formatted")  
 
@@ -328,15 +317,14 @@ shinyServer(function(input, output) {
     
     step.size = as.numeric(round(diff(dat[,"MaturityDate"])/365,1))[1]
     
-    #Checking the length bewtween maturity date
-    if (!all(as.numeric(round(diff(dat[,"MaturityDate"])/365,1))==step.size )){
-      return ("Maturity Dates must be equall spaced")}
-    
+    if (!all(as.numeric(round(diff(dat[,"MaturityDate"])/365,1))==step.size ))
+      return ("Maturity Dates must be equall spaced")
+  
     } else{
       switch(input$dataset,"T-Notes & Bonds" =  dat<-bond.data,
              "T-Notes" = dat<-tnotes)
       }  
-  #Taking the number of rows of the data and generating the cash flow matrix
+  
   n = nrow(dat)
   CF = matrix(0, nrow = n, ncol = n)
   
@@ -346,64 +334,54 @@ shinyServer(function(input, output) {
   } 
   
   diag(CF) = rep(100, n) + diag(CF)
-  
-  #Extracting th discount factor
   DF<-discountFactor(as.matrix((dat[,"Bid"]+dat["Ask"])/2),CF)
-  
-  #Merging a discount factor of 1 to to account for discount factor at present time
   DF <- c(1,DF)
   step.size = as.numeric(round(diff(dat[,"MaturityDate"])/365,1))[1]
-  time = seq(from=0,by=step.size,length=n+1)
-  #Calculating the spot and forward rates 
+  time = seq(from=0,by=step.size,length=n+1)   
   rates = spotForwardRates(time,DF) 
   #Giving output as a list
   data<-list(dat=dat,DF=DF,rates=rates,time=time)  
- })
- })
+})
+})
  
- ####Function to display spot rates and forward rates####
- output$spot.rate<-renderPrint({   
-   # Take a dependency on input$spot.rate_button
-   input$spot.rate_button
+ #Calculation of spot rates and forward rates
+ output$sr<-renderPrint({
+   
+   # Take a dependency on input$srbutton
+   input$srbutton
+   
    # Use isolate() to avoid dependency on other inputs    
    isolate({     
-    #Getting the values from the function
     data<-getDFSpotrate()
-    #If the return is a list then it will be displayed 
-    #otherwise error message will be displayed
-    if(is.list(data)){
+    if(is.list(data))
       list(DsicountFactor= round(as.vector(data$DF),input$digits)
            ,SpotRates=round(data$rates[,1],input$digits),ForwardRates=round(data$rates[,2],input$digits))
-      
-    } else {
+    else
       data
-    }      
    })
  } 
  )
-
- ##Function to plot the spot rate and the discount curve####
- output$spot.rate_plot<-renderPlot({
+ 
+output$srplot<-renderPlot({
   
-  # Take a dependency on input$spot.rate_button
-  input$spot.rate_button  
+  # Take a dependency on input$srbutton
+  input$srbutton
+  
   # Use isolate() to avoid dependency on other inputs    
   isolate({     
-    #Getting date to plot the spot rate and discount curve
+    
     data<-getDFSpotrate()
   
     if(is.list(data))
     {
-      #Plotting spot rate and discount curve
       par(mfrow=c(1,2))
       plot(data$time,data$rates[,1],type = "b",xlab = "Maturity (In Years)",ylab="Rate", main = "Spot Rates")
       plot(data$time,data$DF,type = "b",xlab = "Maturity (In Years)",ylab="Rate", main = "Discount Factors")
       par(mfrow=c(1,1))
     }
   })
- } 
- )
-
+} 
+)
 })#shinyserver
 
 

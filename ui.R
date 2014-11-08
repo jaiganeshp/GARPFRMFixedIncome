@@ -95,12 +95,11 @@ shinyUI(pageWithSidebar(
                      tags$hr(),
                      h5("Significant Digits")                                          
     ),
-    
     #UI for getting the Bond Parameters
     conditionalPanel(condition="input.conditionedPanels==3",
                      
                      h5("Enter inputs below and click 'Run!'"),
-                     actionButton("present.value_button", "Run!"),
+                     actionButton("presentvaluebutton", "Run!"),
                      tags$hr(),
                      
                      h5("Coupon Rate"),
@@ -119,10 +118,10 @@ shinyUI(pageWithSidebar(
                      h5("Significant Digits")                                            
     ),
      #UI for getting the spot rates and discount curve 
-      conditionalPanel(condition="input.conditionedPanels==4",
+    conditionalPanel(condition="input.conditionedPanels==4",
                      
                      h5("Enter inputs below and click 'Run!'"),
-                     actionButton("spot.rate_button", "Run!"),
+                     actionButton("srbutton", "Run!"),
                      tags$hr(),
                      
                      selectInput("userip", "Select an Option:", 
@@ -200,7 +199,7 @@ shinyUI(pageWithSidebar(
                         tags$hr()
                 ),#Conditional Panel 4
  
-  conditionalPanel(condition="input.conditionedPanels!=5",
+conditionalPanel(condition="input.conditionedPanels!=5",
                  numericInput("digits", "Enter Number of significant digits required:" , 
              value = 3)
 )
@@ -219,11 +218,11 @@ shinyUI(pageWithSidebar(
                plotOutput("bond.price_plot"),               
                value=2),
       tabPanel("Bond Parameters", 
-               verbatimTextOutput("bond.parameters"),
+               verbatimTextOutput("p"),
                value=3),      
       tabPanel("Data Tab - Spot & Forward Rates and Discount Curve", 
-               verbatimTextOutput("spot.rate"),
-               plotOutput("spot.rate_plot"),
+               verbatimTextOutput("sr"),
+               plotOutput("srplot"),
                value=4),     
       tabPanel("About", 
                p(HTML("The application demonstrates functionality available in the GARP-FRM 
